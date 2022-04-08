@@ -3,8 +3,11 @@ import pyupbit
 import datetime
 import schedule
 import requests
-from fbprophet import Prophet
+# from fbprophet import Prophet
 import numpy as np
+
+access = ""
+secret = ""
 
 def get_ror(df, k=0.5): 
     # df = pyupbit.get_ohlcv("KRW-ADA", count=7)
@@ -61,52 +64,34 @@ def get_current_price(ticker):
     return pyupbit.get_orderbook(ticker=ticker)["orderbook_units"][0]["ask_price"]
 
 
-predicted_close_price = 0
+# predicted_close_price = 0
 
-def predict_price(ticker):
-    """Prophet으로 당일 종가 가격 예측"""
-    global predicted_close_price
-    df = pyupbit.get_ohlcv(ticker, interval="minute60")
-    df = df.reset_index()
-    df['ds'] = df['index']
-    df['y'] = df['close']
-    data = df[['ds','y']]
-    model = Prophet(yearly_seasonality=True, weekly_seasonality=True)
-    model.fit(data)
-    future = model.make_future_dataframe(periods=24, freq='H')
-    forecast = model.predict(future)
-    closeDf = forecast[forecast['ds'] == forecast.iloc[-1]['ds'].replace(hour=9)]
-    if len(closeDf) == 0:
-        closeDf = forecast[forecast['ds'] == data.iloc[-1]['ds'].replace(hour=9)]
-    closeValue = closeDf['yhat'].values[0]
-    predicted_close_price = closeValue
+# def predict_price(ticker):
+#     """Prophet으로 당일 종가 가격 예측"""
+#     global predicted_close_price
+#     df = pyupbit.get_ohlcv(ticker, interval="minute60")
+#     df = df.reset_index()
+#     df['ds'] = df['index']
+#     df['y'] = df['close']
+#     data = df[['ds','y']]
+#     model = Prophet(yearly_seasonality=True, weekly_seasonality=True)
+#     model.fit(data)
+#     future = model.make_future_dataframe(periods=24, freq='H')
+#     forecast = model.predict(future)
+#     closeDf = forecast[forecast['ds'] == forecast.iloc[-1]['ds'].replace(hour=9)]
+#     if len(closeDf) == 0:
+#         closeDf = forecast[forecast['ds'] == data.iloc[-1]['ds'].replace(hour=9)]
+#     closeValue = closeDf['yhat'].values[0]
+#     predicted_close_price = closeValue
 
-predict_price("KRW-ADA")
-schedule.every().hour.do(lambda: predict_price("KRW-ADA"))
+# predict_price("KRW-ADA")
+# schedule.every().hour.do(lambda: predict_price("KRW-ADA"))
 
 def get_ma15(ticker):
     """15일 이동 평균선 조회"""
     df = pyupbit.get_ohlcv(ticker, interval="minute60")
     ma15 = df['close'].rolling(15).mean().iloc[-1]
     return ma15
-
-def get_balance(ticker):
-    """잔고 조회"""
-    balances = upbit.get_balances()
-    for b in balances:
-        if b['currency'] == ticker:
-            if b['balance'] is not None:
-                return float(b['balance'])
-            else:
-                return 0
-    return 0
-
-def get_current_price(ticker):
-    """현재가 조회"""
-    return pyupbit.get_orderbook(ticker=ticker)["orderbook_units"][0]["ask_price"]
-
-access = ""
-secret = ""
 
 myToken = "xoxb-3328594771606-3337592757156-o2Q0znc0bstvVYgTQEGg46o2"
 
@@ -144,24 +129,24 @@ while True:
 
         if start_time < now < end_time - datetime.timedelta(seconds=1800):
             ada = get_balance("ADA")
-            if (target_price < current_price) and ((ma15 < current_price) or (current_price < predicted_close_price)):
+            if (target_price < current_price) and (ma15 < current_price):
                 # krw = get_balance("KRW")
                 if budget > 5000:
                   buy_result = upbit.buy_market_order("KRW-ADA", budget*0.90)
                   post_message(myToken,"#upbit-notice", "ADA buy : " +str(buy_result))
                   budget = budget*90
-            elif ada != 0 and avg_buy_price*1.055 < current_price:
+            elif (ada != 0) and (avg_buy_price*1.055 < current_price):
               ada = get_balance("ADA")
               if ada > 10:
                 sell_result = upbit.sell_market_order("KRW-ADA", ada)
                 post_message(myToken,"#upbit-notice", "1.05 profit \n\
                   ADA sell : " +str(sell_result))              
-                budget += ada*current_price
-            elif ada != 0 and avg_buy_price*0.75 > current_price:
+                budget += (ada*current_price)
+            elif (ada != 0) and (avg_buy_price*0.75 > current_price):
               ada = get_balance("ADA")
               if ada > 10:
                 sell_result = upbit.sell_market_order("KRW-ADA", ada)
-                budget += ada*current_price
+                budget += (ada*current_price)
                 profit = (current_price - avg_buy_price)*ada
                 post_message(myToken,"#upbit-notice", "0.75 loss \n\
                   ADA sell : " +str(sell_result) + "\nLoss" + str(profit))              
