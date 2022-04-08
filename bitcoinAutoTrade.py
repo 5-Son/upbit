@@ -8,6 +8,7 @@ import numpy as np
 
 access = ""
 secret = ""
+myToken = ""
 
 def get_ror(df, k=0.5): 
     # df = pyupbit.get_ohlcv("KRW-ADA", count=7)
@@ -92,8 +93,6 @@ def get_ma15(ticker):
     df = pyupbit.get_ohlcv(ticker, interval="minute60")
     ma15 = df['close'].rolling(15).mean().iloc[-1]
     return ma15
-
-myToken = "xoxb-3328594771606-3337592757156-o2Q0znc0bstvVYgTQEGg46o2"
 
 def post_message(token, channel, text):
     """슬랙 메시지 전송"""
